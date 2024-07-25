@@ -8,7 +8,7 @@ from sklearn.impute import SimpleImputer
 import sqlite3
 
 # Load the pre-trained model
-model = joblib.load('model.pkl')  # Adjust the path as necessary
+model = joblib.load('model.pkl')
 
 # Create a numerical transformer pipeline
 numerical_transformer = Pipeline(steps=[
@@ -104,4 +104,4 @@ for record in prediction_history:
         'predicted_price': record['predicted_price']
     })
 df = pd.DataFrame(recent_data)
-st.dataframe(df)
+st.write(df)
