@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
@@ -6,8 +6,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 import sqlite3
-
-app = Flask(__name__, template_folder='templates')
 
 # Load the CSV file globally
 data_path = "data/audi.csv"
@@ -41,25 +39,23 @@ create_table()
 # Global variable to store prediction history
 prediction_history = []
 
-@app.route('/')
-def home():
-    return render_template("home.html")
-
+# Function to predict values
 def ValuePredictor(to_predict_list):
     try:
         # Convert the input list to DataFrame
         to_predict = pd.DataFrame([to_predict_list], columns=['year', 'mileage', 'tax', 'mpg', 'engineSize'])
         
         # Apply the same preprocessing
-        to_predict = numerical_transformer.fit_transform(to_predict)
+        to_predict = numerical_transformer.transform(to_predict)
         
         # Predict using the model
         result = model.predict(to_predict)
         return result[0]
     except Exception as e:
-        print(e)
+        st.error(e)
         return None
     
+# Function to save prediction to database
 def save_prediction_to_db(year, mileage, tax, mpg, engineSize, predicted_price):
     conn = sqlite3.connect('predictions.db')
     c = conn.cursor()
@@ -68,67 +64,48 @@ def save_prediction_to_db(year, mileage, tax, mpg, engineSize, predicted_price):
     conn.commit()
     conn.close()
 
-@app.route('/', methods=['POST', 'GET'])
-def result():
-    if request.method == 'POST':
-        try:
-            to_predict_dict = request.form.to_dict()
-            to_predict_list = [
-                int(to_predict_dict['year']),
-                float(to_predict_dict['mileage']),
-                float(to_predict_dict['tax']),
-                float(to_predict_dict['mpg']),
-                float(to_predict_dict['engineSize'])
-            ]
-            
-            result = ValuePredictor(to_predict_list)
-            
-            if result is not None:
-                # Save prediction result to database
-                save_prediction_to_db(
-                    to_predict_list[0],
-                    to_predict_list[1],
-                    to_predict_list[2],
-                    to_predict_list[3],
-                    to_predict_list[4],
-                    result
-                )
-                # Store the prediction result and input data into history
-                prediction_history.append({
-                    'year': to_predict_list[0],
-                    'mileage': to_predict_list[1],
-                    'tax': to_predict_list[2],
-                    'mpg': to_predict_list[3],
-                    'engineSize': to_predict_list[4],
-                    'predicted_price': result
-                })
-                return render_template("home.html", result=f"Price: £ {result}")
-            else:
-                return render_template("home.html", result="Error in prediction")
-        except Exception as e:
-            print(e)
-            return "Terjadi kesalahan dalam prediksi"
+# Streamlit interface
+st.title('Prediksi Harga Mobil Audi')
 
-@app.route('/list')
-def data_list():
-    conn = sqlite3.connect('predictions.db')
-    c = conn.cursor()
-    c.execute("SELECT year, mileage, tax, mpg, engineSize, predicted_price FROM predictions")
-    rows = c.fetchall()
-    conn.close()
+# Input form
+with st.form("prediction_form"):
+    year = st.number_input('Tahun', min_value=1990, max_value=2023, value=2020)
+    mileage = st.number_input('Jarak Tempuh (miles)', value=10000)
+    tax = st.number_input('Pajak (£)', value=150)
+    mpg = st.number_input('Konsumsi BBM (mpg)', value=30.0)
+    engineSize = st.number_input('Ukuran Mesin (L)', value=2.0)
+    submit = st.form_submit_button("Prediksi")
+
+if submit:
+    to_predict_list = [year, mileage, tax, mpg, engineSize]
+    result = ValuePredictor(to_predict_list)
     
-    rows = mobil_data.tail(10).to_dict(orient='records')  
-    # Add prediction history to the rows
-    for record in prediction_history:
-        rows.append({
-            'year': record['year'],
-            'mileage': record['mileage'],
-            'tax': record['tax'],
-            'mpg': record['mpg'],
-            'engineSize': record['engineSize'],
-            'price': record['predicted_price']
+    if result is not None:
+        # Save prediction result to database
+        save_prediction_to_db(year, mileage, tax, mpg, engineSize, result)
+        prediction_history.append({
+            'year': year,
+            'mileage': mileage,
+            'tax': tax,
+            'mpg': mpg,
+            'engineSize': engineSize,
+            'predicted_price': result
         })
-    return render_template("list.html", rows=rows)
+        st.success(f'Harga yang diprediksi: £ {result}')
+    else:
+        st.error('Error dalam prediksi')
 
-if __name__ == '__main__':
-    app.run(debug=True, host='localhost', port=3002)
+# Show recent predictions
+st.subheader('10 Data Terbaru')
+recent_data = mobil_data.tail(10).to_dict(orient='records')
+for record in prediction_history:
+    recent_data.append({
+        'year': record['year'],
+        'mileage': record['mileage'],
+        'tax': record['tax'],
+        'mpg': record['mpg'],
+        'engineSize': record['engineSize'],
+        'predicted_price': record['predicted_price']
+    })
+df = pd.DataFrame(recent_data)
+st.dataframe(df)
