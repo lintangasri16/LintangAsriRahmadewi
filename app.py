@@ -7,10 +7,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 import sqlite3
 
-# Load the CSV file globally
-data_path = "data/audi.csv"
-mobil_data = pd.read_csv(data_path)
-
 # Load the pre-trained model
 model = joblib.load('model.pkl')  # Adjust the path as necessary
 
