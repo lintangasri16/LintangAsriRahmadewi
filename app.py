@@ -31,11 +31,11 @@ prediction_history = []
 st.title('Prediksi Harga Mobil Audi')
 
 # Input data dengan contoh angka valid untuk pengujian
-year = st.text_input('Tahun')
-mileage = st.text_input('Jarak Tempuh (miles)')
-tax = st.text_input('Pajak (£)')
-mpg = st.text_input('Konsumsi BBM (mpg)',)
-engineSize = st.text_input('Ukuran Mesin (L)')
+year = st.text_input('Tahun', '2020')
+mileage = st.text_input('Jarak Tempuh (miles)', '10000')
+tax = st.text_input('Pajak (£)', '150')
+mpg = st.text_input('Konsumsi BBM (mpg)', '30')
+engineSize = st.text_input('Ukuran Mesin (L)', '2.0')
 
 if st.button("Prediksi"):
     try:
