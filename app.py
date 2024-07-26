@@ -1,20 +1,11 @@
 import streamlit as st
 import joblib
+import pickle
 import numpy as np
-import pandas as pd
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
 import sqlite3
 
-# Load the pre-trained model
-model = joblib.load('model.pkl')
-
-# Create a numerical transformer pipeline
-numerical_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='mean')),
-    ('scaler', StandardScaler())
-])
+# Load the decision tree model
+model = pickle.load(open('model.sav', 'rb'))
 
 # Create the database table if it does not exist
 def create_table():
@@ -35,73 +26,52 @@ create_table()
 # Global variable to store prediction history
 prediction_history = []
 
-# Function to predict values
-def ValuePredictor(to_predict_list):
-    try:
-        # Convert the input list to DataFrame
-        to_predict = pd.DataFrame([to_predict_list], columns=['year', 'mileage', 'tax', 'mpg', 'engineSize'])
-        
-        # Apply the same preprocessing
-        to_predict = numerical_transformer.transform(to_predict)
-        
-        # Predict using the model
-        result = model.predict(to_predict)
-        return result[0]
-    except Exception as e:
-        st.error(e)
-        return None
-    
-# Function to save prediction to database
-def save_prediction_to_db(year, mileage, tax, mpg, engineSize, predicted_price):
-    conn = sqlite3.connect('predictions.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO predictions (year, mileage, tax, mpg, engineSize, predicted_price) VALUES (?, ?, ?, ?, ?, ?)",
-              (year, mileage, tax, mpg, engineSize, predicted_price))
-    conn.commit()
-    conn.close()
-
 # Streamlit interface
 st.title('Prediksi Harga Mobil Audi')
 
-# Input form
-with st.form("prediction_form"):
-    year = st.number_input('Tahun', min_value=1990, max_value=2023, value=2020)
-    mileage = st.number_input('Jarak Tempuh (miles)', value=10000)
-    tax = st.number_input('Pajak (£)', value=150)
-    mpg = st.number_input('Konsumsi BBM (mpg)', value=30.0)
-    engineSize = st.number_input('Ukuran Mesin (L)', value=2.0)
-    submit = st.form_submit_button("Prediksi")
+# Input data dengan contoh angka valid untuk pengujian
+year = st.text_input('year')
+mileage = st.text_input('mileage')
+tax = st.text_input('tax')
+mpg = st.text_input('mpg')
+engineSize = st.text_input('engineSize')
 
-if submit:
+if st.button("Predict"):
+    try:
+        # Save the data to the SQLite database
+        default_price = "Unknown"
+        with sql.connect("prediction.db") as con:
+            cur = con.cursor()
+            cur.execute("INSERT INTO predictions (year, mileage, tax, mpg, engineSize, predicted_price) VALUES (?, ?, ?, ?, ?, ?)",
+              (year, mileage, tax, mpg, engineSize, predicted_price))
+            con.commit()
+            st.success("Data successfully saved")
+#make a prediction
     to_predict_list = [year, mileage, tax, mpg, engineSize]
     result = ValuePredictor(to_predict_list)
-    
-    if result is not None:
-        # Save prediction result to database
-        save_prediction_to_db(year, mileage, tax, mpg, engineSize, result)
-        prediction_history.append({
-            'year': year,
-            'mileage': mileage,
-            'tax': tax,
-            'mpg': mpg,
-            'engineSize': engineSize,
-            'predicted_price': result
-        })
-        st.success(f'Harga yang diprediksi: £ {result}')
-    else:
-        st.error('Error dalam prediksi')
+
+     # Display the prediction result
+        st.subheader("Prediction Result")
+        st.write(f"Harga yang diprediksi: £ {result}")
+        
+        # Update the database with the prediction result
+        with sql.connect("predictions.db") as con:
+            cur = con.cursor()
+            cur.execute("UPDATE predicted_price SET predicted_price = ? WHERE year = ? AND mileage = ? AND tax = ? AND mpg = ? AND engineSize = ?",
+                        (result, year, mileage, tax, mpg, engineSize))
+            con.commit()
+
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
 
 # Show recent predictions
-st.subheader('10 Data Terbaru')
-recent_data = mobil_data.tail(10).to_dict(orient='records')
-for record in prediction_history:
-    recent_data.append({
-        'year': record['year'],
-        'mileage': record['mileage'],
-        'tax': record['tax'],
-        'mpg': record['mpg'],
-        'engineSize': record['engineSize'],
-        'predicted_price': record['predicted_price']
-    })
-df = pd.DataFrame(recent_data)
+st.subheader('Data Mobil Audi')
+con = sql.connect("prediction.db")
+con.row_factory = sql.Row
+cur = con.cursor()
+cur.execute("SELECT * FROM audi")
+rows = cur.fetchall()
+con.close()
+    
+df = pd.DataFrame(rows)
 st.write(df)
