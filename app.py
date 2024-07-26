@@ -6,7 +6,7 @@ import pandas as pd
 import sqlite3
 
 # Load the decision tree model
-model = joblib.load('model.sav')
+model = pickle.load(open('model.sav', 'rb'))
 
 # Create the database table if it does not exist
 def create_table():
