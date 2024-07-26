@@ -2,6 +2,7 @@ import streamlit as st
 import joblib
 import pickle
 import numpy as np
+import pandas as pd
 import sqlite3
 
 # Load the decision tree model
@@ -36,42 +37,41 @@ tax = st.text_input('tax')
 mpg = st.text_input('mpg')
 engineSize = st.text_input('engineSize')
 
-if st.button("Predict"):
+if st.button("Prediksi"):
     try:
         # Save the data to the SQLite database
-        default_price = "Unknown"
-        with sql.connect("prediction.db") as con:
+        with sqlite3.connect("predictions.db") as con:
             cur = con.cursor()
-            cur.execute("INSERT INTO predictions (year, mileage, tax, mpg, engineSize, predicted_price) VALUES (?, ?, ?, ?, ?, ?)",
-              (year, mileage, tax, mpg, engineSize, predicted_price))
+            cur.execute("INSERT INTO predictions (year, mileage, tax, mpg, engineSize) VALUES (?, ?, ?, ?, ?)",
+                        (year, mileage, tax, mpg, engineSize))
             con.commit()
-            st.success("Data successfully saved")
-#make a prediction
-    to_predict_list = [year, mileage, tax, mpg, engineSize]
-    result = ValuePredictor(to_predict_list)
+
+        # Make a prediction
+        to_predict_list = [float(year), float(mileage), float(tax), float(mpg), float(engineSize)]
+        to_predict = np.array(to_predict_list).reshape(1, -1)
+        result = model.predict(to_predict)[0]
 
      # Display the prediction result
         st.subheader("Prediction Result")
         st.write(f"Harga yang diprediksi: £ {result}")
         
         # Update the database with the prediction result
-        with sql.connect("predictions.db") as con:
+        with sqlite3.connect("predictions.db") as con:
             cur = con.cursor()
-            cur.execute("UPDATE predicted_price SET predicted_price = ? WHERE year = ? AND mileage = ? AND tax = ? AND mpg = ? AND engineSize = ?",
+            cur.execute("UPDATE predictions SET predicted_price = ? WHERE year = ? AND mileage = ? AND tax = ? AND mpg = ? AND engineSize = ?",
                         (result, year, mileage, tax, mpg, engineSize))
             con.commit()
-
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
 # Show recent predictions
-st.subheader('Data Mobil Audi')
-con = sql.connect("prediction.db")
-con.row_factory = sql.Row
-cur = con.cursor()
-cur.execute("SELECT * FROM audi")
-rows = cur.fetchall()
-con.close()
+st.subheader('Data Prediksi Terbaru')
+try:
+    con = sqlite3.connect("predictions.db")
+    cur = con.cursor()
+    cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 10")
+    rows = cur.fetchall()
+    con.close()
     
 df = pd.DataFrame(rows)
 st.write(df)
