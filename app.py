@@ -31,11 +31,11 @@ prediction_history = []
 st.title('Prediksi Harga Mobil Audi')
 
 # Input data dengan contoh angka valid untuk pengujian
-year = st.text_input('year')
-mileage = st.text_input('mileage')
-tax = st.text_input('tax')
-mpg = st.text_input('mpg')
-engineSize = st.text_input('engineSize')
+year = st.text_input('Tahun', '2020')
+mileage = st.text_input('Jarak Tempuh (miles)', '10000')
+tax = st.text_input('Pajak (£)', '150')
+mpg = st.text_input('Konsumsi BBM (mpg)', '30')
+engineSize = st.text_input('Ukuran Mesin (L)', '2.0')
 
 if st.button("Prediksi"):
     try:
@@ -51,18 +51,21 @@ if st.button("Prediksi"):
         to_predict = np.array(to_predict_list).reshape(1, -1)
         result = model.predict(to_predict)[0]
 
-     # Display the prediction result
-        st.subheader("Prediction Result")
+        # Display the prediction result
+        st.subheader("Hasil Prediksi")
         st.write(f"Harga yang diprediksi: £ {result}")
-        
+
         # Update the database with the prediction result
         with sqlite3.connect("predictions.db") as con:
             cur = con.cursor()
             cur.execute("UPDATE predictions SET predicted_price = ? WHERE year = ? AND mileage = ? AND tax = ? AND mpg = ? AND engineSize = ?",
                         (result, year, mileage, tax, mpg, engineSize))
             con.commit()
+
+        st.success("Data berhasil disimpan dan diprediksi")
+
     except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.error(f"Terjadi kesalahan: {e}")
 
 # Show recent predictions
 st.subheader('Data Prediksi Terbaru')
@@ -72,8 +75,8 @@ try:
     cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 10")
     rows = cur.fetchall()
     con.close()
-    
-if rows:
+
+    if rows:
         df = pd.DataFrame(rows, columns=['ID', 'Tahun', 'Jarak Tempuh', 'Pajak', 'MPG', 'Ukuran Mesin', 'Harga Prediksi'])
         st.write(df)
     else:
