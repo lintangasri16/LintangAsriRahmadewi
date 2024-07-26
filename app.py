@@ -73,5 +73,10 @@ try:
     rows = cur.fetchall()
     con.close()
     
-df = pd.DataFrame(rows)
-st.write(df)
+if rows:
+        df = pd.DataFrame(rows, columns=['ID', 'Tahun', 'Jarak Tempuh', 'Pajak', 'MPG', 'Ukuran Mesin', 'Harga Prediksi'])
+        st.write(df)
+    else:
+        st.write("Tidak ada data prediksi terbaru")
+except Exception as e:
+    st.error(f"Terjadi kesalahan saat mengambil data: {e}")
